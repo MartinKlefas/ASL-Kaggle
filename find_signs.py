@@ -7,6 +7,7 @@ from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans
 
 from sklearn.preprocessing import normalize
+from tqdm import tqdm
 
 
 
@@ -90,13 +91,13 @@ def try_clustering(sample_id: int, data : pd.DataFrame, savethreshold = 80):
             
             decoded_word = strict_translate(cipher,plain_subtext)
             
-            print(f"We're supposed to get: {unrepeated_phrase}")
-            print(f"We got:                {decoded_word}")
+            #print(f"We're supposed to get: {unrepeated_phrase}")
+            #print(f"We got:                {decoded_word}")
             this_sim = similarity(unrepeated_phrase,decoded_word)
-            print(f"This is a { this_sim : .2f}% similarity.")
+            #print(f"This is a { this_sim : .2f}% similarity.")
             
             if this_sim > savethreshold:
-                save_gestures(feat,kmeans.labels_,cipher,unrepeated_phrase,decoded_word,sample_id)
+                save_gestures(hand,kmeans.labels_,cipher,unrepeated_phrase,decoded_word,sample_id)
             return this_sim
             
         else:
@@ -118,23 +119,23 @@ def similarity(string1 : str, string2 : str):
     return 100 * hits / len(string1)
 
 
-def save_gestures(hand_numpy,groups,cipher, unrepeated_phrase,decoded_word,sequence_id):
-    print(f"writing {sequence_id} Pickle")
+def save_gestures(hand_df,groups,cipher, unrepeated_phrase,decoded_word,sequence_id):
+    #print(f"writing {sequence_id} Pickle")
     gestures = {}
     
     for i, letter in enumerate(unrepeated_phrase):
         if letter == decoded_word[i]:
             cluster = cipher[i]
             #print(f"Letter: {letter}, Cluster: {cluster}")
-            for gesture,group in zip(hand_numpy,groups):
+            for i,group in enumerate(groups):
                 
                 if group == cluster:
                     if letter in gestures:
                         glist = gestures[letter]
-                        glist.append(gesture)
+                        glist.append({"Sequence": sequence_id, "Frame": hand_df.iloc[i].frame})
                         gestures[letter] = glist
                     else:
-                        gList = [gesture]
+                        gList = [{"Sequence": sequence_id, "Frame": hand_df.iloc[i].frame}]
                         gestures[letter] = gList
     
     with open(f'output/{sequence_id}.pickle', 'wb') as f:
@@ -145,9 +146,11 @@ def main():
     cumulative_similarity = 0
     
     data = pd.read_csv("input/train.csv", delimiter=',', encoding='UTF-8')
-    for sequence in data.sequence_id:
-        print(f"Sequence ID: {sequence}")
+    for sequence in tqdm(data.sequence_id):
+        #print(f"Sequence ID: {sequence}")
+        
         cumulative_similarity += try_clustering(sequence, data,75)
+        
     
     print(f"Average Similarity was: {cumulative_similarity/len(data) : .2f}%")
 
